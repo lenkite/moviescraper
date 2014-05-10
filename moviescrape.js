@@ -39,25 +39,28 @@ function Movie(title, description, releaseDate) {
     me.starCast = [];
     me.language = '';
     me.director = '';
-
-    me.addHouse = function (house) {
-        if (house) {
-            me.productionHouses.push(house);
-        }
-    }
-    me.addStar = function (star) {
-        if (star) {
-            me.starCast.push(star);
-        }
-    };
-
+    me.infoPath = '';
 }
+
+Movie.prototype.addHouse = function(house) {
+    if (house) {
+        this.productionHouses.push(house);
+    }
+}
+Movie.prototype.addStar = function (star) {
+    if (star) {
+        this.starCast.push(star);
+    }
+};
+
+
+
 /**
  * Scraper for bollywood hungama
  * @constructor
  */
 function BollywoodHungamaScraper() {
-    this.baseUrl = 'http://www.bollywoodhungama.com/movies';
+    this.baseUrl = 'http://www.bollywoodhungama.com';
     /**
      * Movies list url pattern for bollywood hungama takes in year and page
      * @type {string}
@@ -67,7 +70,7 @@ function BollywoodHungamaScraper() {
      * Movie Detail URL pattern only takes in movie title at url end.
      * @type {string}
      */
-    this.movieInfoUrlPattern = "http://www.bollywoodhungama.com/moviemicro/cast/id/734690/%s";
+    this.movieInfoUrlPattern = "http://www.bollywoodhungama.com/%s";
 //    var http://www.bollywoodhungama.com/moviemicro/cast/id/732749/Yeh+Hai+Bakrapur
 //    if (!callback) {
 //        throw "Kindly pass a function that accepts [] as first param";
@@ -90,12 +93,13 @@ function BollywoodHungamaScraper() {
      * Runs the bollywood hungama scraper and returns a promise.
      */
     this.scrape = function () {
-        const years = [2014, 2013];
+//        const years = [2013, 2014];
+        const years = [2013, 2014];
         const movies = [];
 
         let promiseChain = Q();
         years.forEach(function (year) {
-            for (let p = 1; p < 50; ++p) {
+            for (let p = 1; p < 30; ++p) { //not very accurate..
                 let promise = me.getMovieListHtml(year, p)
                     .then(function (movieListHtml) {
                         const moviesChunk = me.parseMovieListHtml(movieListHtml);
@@ -108,7 +112,6 @@ function BollywoodHungamaScraper() {
                 promiseChain = promiseChain.then(function() {
                     return promise;
                 });
-                console.log("Added %s promise to promisechain", promise);
             }
         });
         return promiseChain.then(function () {
@@ -123,7 +126,8 @@ function BollywoodHungamaScraper() {
         const defer = Q.defer();
         const promises = moviesChunk.map(function (movie) {
             try {
-                    return me.getMovieInfoHtml(movie.title).then(function (movieInfoHtml) {
+                    return me.getMovieInfoHtml(movie).then(function (movieInfoHtml) {
+//                        console.info("movie info info = %s", movieInfoHtml);
                         return me.parseFillMovieDetail(movieInfoHtml, movie);
                     });
             } catch(ex) {
@@ -162,13 +166,13 @@ function BollywoodHungamaScraper() {
 
     /**
      * Given a movie title returns the movie Info html.
-     * @param title
+     * @param movie basic movie object
      * @returns movie html
      */
-    me.getMovieInfoHtml = function (title) {
+    me.getMovieInfoHtml = function (movie) {
         console.info("ENTERED getMovieInfoHtml");
-        let titleEscaped = qrystr.escape(title);
-        let movieInfoUrl = util.format(me.movieInfoUrlPattern, titleEscaped);
+//        let titleEscaped = titleEscaped.escape(movie.infoPath);
+        let movieInfoUrl = util.format(me.movieInfoUrlPattern, movie.infoPath);
         return reqPromise(movieInfoUrl).then(function (resp) {
             console.info("Made request to movie info url: %s", movieInfoUrl);
             console.info("EXITED getMovieInfoHtml");
@@ -184,11 +188,13 @@ function BollywoodHungamaScraper() {
         const moviesChunk = [];
         $movieElems.each(function (i, elem) {
             const title = $('.movlstlititle a', elem).text();
+            const infoPath = $('.movlstlititle a', elem).attr('href');
             const dateStr = $('.movlstlirel span', elem).text();
             const desc = $('.movlstlidesc h3', elem).text();
-            if (title && dateStr && desc) {
+            if (title && dateStr && desc && infoPath) {
                 const date = moment(dateStr, "D MMM YYYY");
                 let movie = new Movie(title, desc, date);
+                movie.infoPath = infoPath;
 //                console.log("Parsed Movies: %j", movie)
                 moviesChunk.push(movie);
             }
@@ -213,9 +219,11 @@ function BollywoodHungamaScraper() {
             let link = $e.attr('href');
 //           console.log(link);
             if (link.indexOf('/movies/company') == 0) {
+//                console.log("Added house %s to movie: %s", $e.text(),movie.title);
                 movie.addHouse($e.text());
 //              console.log("House: " + $e.text());
             } else if (link.indexOf('/celebritymicro/') == 0) {
+//                console.log("Added star %s to movie %s", $e.text(), movie.title);
                 movie.addStar($e.text());
             }
         });
