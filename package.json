@@ -1,0 +1,16 @@
+{
+  "name": "moviescrape",
+  "version": "0.0.1",
+  "description": "Scrape movie data",
+  "main": "server.js",
+  "author": "Tarun Elankath <tarun@elankath.com>",
+  "dependencies": {
+    "cheerio": "latest",
+    "minimist": "latest",
+    "moment": "latest",
+    "q": "latest",
+    "request": "latest",
+    "querystring": "latest",
+    "jsonfile":  "latest"
+  }
+}
